@@ -58,7 +58,7 @@ func getDirectorySize(path string) (int64, error) {
 }
 
 // RegisterUIAPIRoutes registers JSON API routes for the web UI
-func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model.ModelLoader, appConfig *config.ApplicationConfig, galleryService *services.GalleryService, opcache *services.OpCache, applicationInstance *application.Application) {
+func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model.ModelLoader, appConfig *config.ApplicationConfig, galleryService *services.GalleryService, opcache *services.OpCache, applicationInstance *application.Application, adminMiddleware echo.MiddlewareFunc) {
 
 	// Operations API - Get all current operations (models + backends)
 	app.GET("/api/operations", func(c echo.Context) error {
@@ -168,9 +168,9 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 		return c.JSON(200, map[string]interface{}{
 			"operations": operations,
 		})
-	})
+	}, adminMiddleware)
 
-	// Cancel operation endpoint
+	// Cancel operation endpoint (admin only)
 	app.POST("/api/operations/:jobID/cancel", func(c echo.Context) error {
 		jobID := c.Param("jobID")
 		xlog.Debug("API request to cancel operation", "jobID", jobID)
@@ -190,7 +190,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"success": true,
 			"message": "Operation cancelled",
 		})
-	})
+	}, adminMiddleware)
 
 	// Dismiss a failed operation (acknowledge the error and remove it from the list)
 	app.POST("/api/operations/:jobID/dismiss", func(c echo.Context) error {
@@ -204,9 +204,9 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"success": true,
 			"message": "Operation dismissed",
 		})
-	})
+	}, adminMiddleware)
 
-	// Model Gallery APIs
+	// Model Gallery APIs (admin only)
 	app.GET("/api/models", func(c echo.Context) error {
 		term := c.QueryParam("term")
 		page := c.QueryParam("page")
@@ -461,7 +461,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"prevPage":         prevPage,
 			"nextPage":         nextPage,
 		})
-	})
+	}, adminMiddleware)
 
 	// Returns installed models with their capability flags for UI filtering
 	app.GET("/api/models/capabilities", func(c echo.Context) error {
@@ -534,7 +534,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"jobID":   uid,
 			"message": "Installation started",
 		})
-	})
+	}, adminMiddleware)
 
 	app.POST("/api/models/delete/:id", func(c echo.Context) error {
 		galleryID := c.Param("id")
@@ -584,7 +584,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"jobID":   uid,
 			"message": "Deletion started",
 		})
-	})
+	}, adminMiddleware)
 
 	app.POST("/api/models/config/:id", func(c echo.Context) error {
 		galleryID := c.Param("id")
@@ -628,7 +628,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 		return c.JSON(200, map[string]interface{}{
 			"message": "Configuration file saved",
 		})
-	})
+	}, adminMiddleware)
 
 	// Get installed model config as JSON (used by frontend for MCP detection, etc.)
 	app.GET("/api/models/config-json/:name", func(c echo.Context) error {
@@ -647,7 +647,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 		}
 
 		return c.JSON(http.StatusOK, modelConfig)
-	})
+	}, adminMiddleware)
 
 	// Get installed model YAML config for the React model editor
 	app.GET("/api/models/edit/:name", func(c echo.Context) error {
@@ -686,7 +686,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"config": string(configData),
 			"name":   modelName,
 		})
-	})
+	}, adminMiddleware)
 
 	app.GET("/api/models/job/:uid", func(c echo.Context) error {
 		jobUID := c.Param("uid")
@@ -723,7 +723,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 		}
 
 		return c.JSON(200, response)
-	})
+	}, adminMiddleware)
 
 	// Backend Gallery APIs
 	app.GET("/api/backends", func(c echo.Context) error {
@@ -877,7 +877,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"nextPage":           nextPage,
 			"systemCapability":   detectedCapability,
 		})
-	})
+	}, adminMiddleware)
 
 	app.POST("/api/backends/install/:id", func(c echo.Context) error {
 		backendID := c.Param("id")
@@ -918,7 +918,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"jobID":   uid,
 			"message": "Backend installation started",
 		})
-	})
+	}, adminMiddleware)
 
 	// Install backend from external source (OCI image, URL, or path)
 	app.POST("/api/backends/install-external", func(c echo.Context) error {
@@ -982,7 +982,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"jobID":   uid,
 			"message": "External backend installation started",
 		})
-	})
+	}, adminMiddleware)
 
 	app.POST("/api/backends/delete/:id", func(c echo.Context) error {
 		backendID := c.Param("id")
@@ -1030,7 +1030,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"jobID":   uid,
 			"message": "Backend deletion started",
 		})
-	})
+	}, adminMiddleware)
 
 	app.GET("/api/backends/job/:uid", func(c echo.Context) error {
 		jobUID := c.Param("uid")
@@ -1067,7 +1067,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 		}
 
 		return c.JSON(200, response)
-	})
+	}, adminMiddleware)
 
 	// System Backend Deletion API (for installed backends on index page)
 	app.POST("/api/backends/system/delete/:name", func(c echo.Context) error {
@@ -1093,7 +1093,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			"success": true,
 			"message": "Backend deleted successfully",
 		})
-	})
+	}, adminMiddleware)
 
 	// P2P APIs
 	app.GET("/api/p2p/workers", func(c echo.Context) error {
@@ -1134,7 +1134,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 			// Keep backward-compatible "nodes" key with llama.cpp workers
 			"nodes": llamaJSON,
 		})
-	})
+	}, adminMiddleware)
 
 	app.GET("/api/p2p/federation", func(c echo.Context) error {
 		nodes := p2p.GetAvailableNodes(p2p.NetworkID(appConfig.P2PNetworkID, p2p.FederatedID))
@@ -1154,7 +1154,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 		return c.JSON(200, map[string]interface{}{
 			"nodes": nodesJSON,
 		})
-	})
+	}, adminMiddleware)
 
 	app.GET("/api/p2p/stats", func(c echo.Context) error {
 		llamaCPPNodes := p2p.GetAvailableNodes(p2p.NetworkID(appConfig.P2PNetworkID, p2p.LlamaCPPWorkerID))
@@ -1196,7 +1196,7 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 				"total":  len(mlxWorkerNodes),
 			},
 		})
-	})
+	}, adminMiddleware)
 
 	// Resources API endpoint - unified memory info (GPU if available, otherwise RAM)
 	app.GET("/api/resources", func(c echo.Context) error {
@@ -1227,11 +1227,11 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 
 	if !appConfig.DisableRuntimeSettings {
 		// Settings API
-		app.GET("/api/settings", localai.GetSettingsEndpoint(applicationInstance))
-		app.POST("/api/settings", localai.UpdateSettingsEndpoint(applicationInstance))
+		app.GET("/api/settings", localai.GetSettingsEndpoint(applicationInstance), adminMiddleware)
+		app.POST("/api/settings", localai.UpdateSettingsEndpoint(applicationInstance), adminMiddleware)
 	}
 
-	// Logs API
+	// Logs API (admin only)
 	app.GET("/api/traces", func(c echo.Context) error {
 		if !appConfig.EnableTracing {
 			return c.JSON(503, map[string]any{
@@ -1242,12 +1242,12 @@ func RegisterUIAPIRoutes(app *echo.Echo, cl *config.ModelConfigLoader, ml *model
 		return c.JSON(200, map[string]interface{}{
 			"traces": traces,
 		})
-	})
+	}, adminMiddleware)
 
 	app.POST("/api/traces/clear", func(c echo.Context) error {
 		middleware.ClearTraces()
 		return c.JSON(200, map[string]interface{}{
 			"message": "Traces cleared",
 		})
-	})
+	}, adminMiddleware)
 }
